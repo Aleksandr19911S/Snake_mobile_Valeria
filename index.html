@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Змейка</title>
+  <style>
+    body { 
+      background: #222; 
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      height: 100vh; 
+      margin: 0; 
+      overflow: hidden;
+      position: relative;
+    }
+    canvas { 
+      background: #fff; 
+      border: 2px solid #333; 
+      box-shadow: 0 8px 32px #0008; 
+      border-radius: 18px;
+      max-width: 100vw;
+      max-height: 60vh;
+    }
+    #score {
+      color: #fff;
+      font-family: 'Segoe UI', 'Arial', sans-serif;
+      position: absolute;
+      top: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: clamp(1.5rem, 4vw, 2rem);
+      letter-spacing: 2px;
+      text-shadow: 0 2px 8px #000a;
+      background: rgba(34,34,34,0.35);
+      padding: 8px 32px;
+      border-radius: 16px;
+      border: 1.5px solid #4caf50;
+      box-shadow: 0 2px 8px #0004;
+      z-index: 30;
+    }
+    #gameover {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(34,34,34,0.65);
+      color: #fff;
+      font-family: 'Segoe UI', 'Arial', sans-serif;
+      font-size: clamp(1.5rem, 4vw, 2.2rem);
+      padding: 32px 48px;
+      border-radius: 24px;
+      box-shadow: 0 8px 32px #000a;
+      text-align: center;
+      z-index: 10;
+      border: 2px solid #f44336;
+      animation: fadeIn 0.7s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translate(-50%, -60%); }
+      to { opacity: 1; transform: translate(-50%, -50%); }
+    }
+    
+    /* Мобильные кнопки управления */
+    #mobile-controls {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 12px;
+      z-index: 1000;
+      width: 240px;
+      height: 160px;
+    }
+    
+    .control-btn {
+      background: linear-gradient(135deg, #4caf50, #45a049);
+      border: 4px solid #2e7d32;
+      border-radius: 16px;
+      color: white;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 70px;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+    
+    .control-btn:active {
+      background: rgba(76, 175, 80, 1);
+      transform: scale(0.95);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    }
+    
+    .control-btn.up {
+      grid-column: 2;
+      grid-row: 1;
+    }
+    
+    .control-btn.left {
+      grid-column: 1;
+      grid-row: 2;
+    }
+    
+    .control-btn.right {
+      grid-column: 3;
+      grid-row: 2;
+    }
+    
+    .control-btn.down {
+      grid-column: 2;
+      grid-row: 2;
+    }
+    
+    /* Адаптивность для мобильных устройств */
+    @media (max-width: 767px) {
+      body {
+        padding: 10px;
+        height: 100vh;
+        box-sizing: border-box;
+      }
+      
+      canvas {
+        max-width: 90vw;
+        max-height: 50vh;
+      }
+      
+      #music-btn, #music-select {
+        font-size: 0.9rem;
+        padding: 6px 12px;
+      }
+      
+      #music-btn {
+        right: 10px;
+        top: 10px;
+      }
+      
+      #music-select {
+        right: 100px;
+        top: 10px;
+        width: 120px;
+      }
+      
+      #mobile-controls {
+        display: grid !important;
+        width: 280px;
+        height: 180px;
+        bottom: 25px;
+      }
+      
+      .control-btn {
+        font-size: 32px;
+        min-height: 80px;
+        border-radius: 20px;
+      }
+    }
+    
+    /* Настройки для десктопной версии */
+    @media (min-width: 768px) {
+      #mobile-controls {
+        width: 200px;
+        height: 140px;
+        bottom: 30px;
+      }
+      
+      .control-btn {
+        font-size: 24px;
+        min-height: 60px;
+        border-radius: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="score">Счёт: 0</div>
+  <canvas id="game"></canvas>
+  <div id="gameover"></div>
+  <button id="music-btn" style="position:absolute;top:20px;right:32px;z-index:20;padding:8px 18px;font-size:1rem;background:#b2dfdb;color:#222;border:none;border-radius:10px;box-shadow:0 2px 8px #0002;cursor:pointer;">Музыка: Вкл</button>
+  <select id="music-select" style="position:absolute;top:20px;right:150px;z-index:20;padding:7px 12px;font-size:1rem;background:#fffde7;color:#222;border:none;border-radius:10px;box-shadow:0 2px 8px #0002;cursor:pointer;"
+    onkeydown="event.preventDefault();"
+  >
+    <option value="Ollane_feat_Miyagi_-_Touch_the_Sky_69348283.mp3">Ollane feat Miyagi - Touch the Sky</option>
+    <option value="Spring-Flowers(chosic.com).mp3">Spring Flowers</option>
+    <option value="ANNA_ASTI_-_Carica_76368874.mp3">АННА АСТИ - Царица</option>
+  </select>
+  
+  <!-- Мобильные кнопки управления -->
+  <div id="mobile-controls">
+    <button class="control-btn up" id="btn-up">↑</button>
+    <button class="control-btn left" id="btn-left">←</button>
+    <button class="control-btn right" id="btn-right">→</button>
+    <button class="control-btn down" id="btn-down">↓</button>
+  </div>
+  
+  <audio id="bg-music" src="Ollane_feat_Miyagi_-_Touch_the_Sky_69348283.mp3" loop preload="auto"></audio>
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const box = 20;
+    let fieldSize = 600;
+    
+    // Адаптация размера canvas для мобильных устройств
+    function resizeCanvas() {
+      const isMobile = window.innerWidth < 768;
+      if (isMobile) {
+        const maxSize = Math.min(window.innerWidth * 0.9, window.innerHeight * 0.5);
+        fieldSize = Math.floor(maxSize / box) * box;
+        fieldSize = Math.max(fieldSize, 400); // Минимальный размер
+        fieldSize = Math.min(fieldSize, 600); // Максимальный размер
+      } else {
+        fieldSize = 600;
+      }
+      canvas.width = fieldSize;
+      canvas.height = fieldSize;
+      
+      // Перезапускаем игру при изменении размера
+      if (!gameOver) {
+        snake = [{x: Math.floor(fieldSize/box/2)*box, y: Math.floor(fieldSize/box/2)*box}];
+        direction = null;
+        score = 0;
+        document.getElementById('score').textContent = 'Счёт: 0';
+        food = getRandomFood();
+      }
+    }
+    
+    // Инициализация игровых переменных
+    let score = 0;
+    let gameOver = false;
+    let snake = [{x: Math.floor(fieldSize/box/2)*box, y: Math.floor(fieldSize/box/2)*box}];
+    let direction = null;
+    
+    // --- Типы фруктов ---
+    const fruitTypes = [
+      {
+        name: 'cherry',
+        color: '#ff1744',
+        draw: function(x, y, box) {
+          ctx.save();
+          ctx.shadowColor = '#c62828';
+          ctx.shadowBlur = 16;
+          // Две вишенки
+          ctx.beginPath();
+          ctx.arc(x + box/2 - 5, y + box/2 + 2, box/2 - 8, 0, 2 * Math.PI);
+          ctx.arc(x + box/2 + 5, y + box/2 + 2, box/2 - 8, 0, 2 * Math.PI);
+          ctx.fillStyle = '#ff1744';
+          ctx.fill();
+          ctx.lineWidth = 2.2;
+          ctx.strokeStyle = '#b71c1c';
+          ctx.stroke();
+          // Блики
+          ctx.globalAlpha = 0.25;
+          ctx.beginPath(); ctx.arc(x + box/2 - 7, y + box/2 - 1, 2, 0, 2 * Math.PI); ctx.fillStyle = '#fff'; ctx.fill();
+          ctx.beginPath(); ctx.arc(x + box/2 + 3, y + box/2 - 1, 2, 0, 2 * Math.PI); ctx.fillStyle = '#fff'; ctx.fill(); ctx.globalAlpha = 1;
+          // Черенки
+          ctx.save(); ctx.shadowBlur = 0;
+          ctx.strokeStyle = '#388e3c'; ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(x + box/2 - 5, y + box/2 - 2); ctx.lineTo(x + box/2 - 2, y + box/2 - 10); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(x + box/2 + 5, y + box/2 - 2); ctx.lineTo(x + box/2 + 2, y + box/2 - 10); ctx.stroke();
+          // Листик
+          ctx.beginPath(); ctx.ellipse(x + box/2, y + box/2 - 12, 5, 2.5, -0.3, 0, 2 * Math.PI); ctx.fillStyle = '#00e676'; ctx.fill();
+          ctx.restore();
+          ctx.restore();
+        }
+      }
+    ];
+
+    function getRandomFood() {
+      const type = fruitTypes[Math.floor(Math.random() * fruitTypes.length)];
+      return {
+        x: Math.floor(Math.random() * (fieldSize/box)) * box,
+        y: Math.floor(Math.random() * (fieldSize/box)) * box,
+        appear: 1,
+        type: type
+      };
+    }
+
+    let food = getRandomFood();
+    
+    // Инициализация canvas
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Обработчик изменения размера окна для кнопок
+    window.addEventListener('resize', () => {
+      const mobileControls = document.getElementById('mobile-controls');
+      if (mobileControls) {
+        mobileControls.style.display = 'grid';
+        mobileControls.style.visibility = 'visible';
+        
+        // Настраиваем кнопки в зависимости от размера экрана
+        const buttons = mobileControls.querySelectorAll('.control-btn');
+        if (window.innerWidth < 768) {
+          // Мобильная версия
+          buttons.forEach(btn => {
+            btn.style.background = 'linear-gradient(135deg, #ff5722, #f44336)';
+            btn.style.border = '4px solid #d32f2f';
+            btn.style.fontSize = '32px';
+            btn.style.minHeight = '80px';
+            btn.style.boxShadow = '0 6px 20px rgba(255,87,34,0.6)';
+          });
+        } else {
+          // Десктопная версия
+          buttons.forEach(btn => {
+            btn.style.background = 'linear-gradient(135deg, #4caf50, #45a049)';
+            btn.style.border = '3px solid #2e7d32';
+            btn.style.fontSize = '24px';
+            btn.style.minHeight = '60px';
+            btn.style.boxShadow = '0 5px 15px rgba(0,0,0,0.4)';
+          });
+        }
+      }
+    });
+
+    // --- Звук поедания еды ---
+    function playEatSound() {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'triangle';
+      o.frequency.value = 520;
+      g.gain.value = 0.18;
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start();
+      o.frequency.linearRampToValueAtTime(880, ctx.currentTime + 0.08);
+      g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.13);
+      o.stop(ctx.currentTime + 0.13);
+      o.onended = () => ctx.close();
+    }
+    // --- конец блока звука ---
+
+    // --- Звук game over ---
+    function playGameOverSound() {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(440, ctx.currentTime);
+      o.frequency.linearRampToValueAtTime(180, ctx.currentTime + 0.3);
+      g.gain.value = 0.22;
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start();
+      g.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.32);
+      o.stop(ctx.currentTime + 0.32);
+      o.onended = () => ctx.close();
+    }
+    // --- конец блока звука ---
+
+    // --- Фоновая музыка через <audio> ---
+    const musicBtn = document.getElementById('music-btn');
+    const bgMusic = document.getElementById('bg-music');
+    const musicSelect = document.getElementById('music-select');
+    let musicPlaying = false;
+    const musicTracks = {
+      'Ollane_feat_Miyagi_-_Touch_the_Sky_69348283.mp3': 'Ollane feat Miyagi - Touch the Sky',
+      'Spring-Flowers(chosic.com).mp3': 'Spring Flowers',
+      'ANNA_ASTI_-_Carica_76368874.mp3': 'АННА АСТИ - Царица'
+    };
+
+    musicBtn.onclick = () => {
+      if (musicPlaying) {
+        bgMusic.pause();
+        musicBtn.textContent = 'Музыка: Выкл';
+        musicPlaying = false;
+      } else {
+        bgMusic.volume = 0.08; // было 0.18, стало 0.08
+        bgMusic.play();
+        musicBtn.textContent = 'Музыка: Вкл';
+        musicPlaying = true;
+      }
+    };
+    musicSelect.onchange = () => {
+      const wasPlaying = musicPlaying;
+      bgMusic.pause();
+      bgMusic.currentTime = 0;
+      bgMusic.src = musicSelect.value;
+      if (wasPlaying) {
+        setTimeout(() => {
+          bgMusic.play();
+        }, 100);
+      }
+    };
+    // Автостарт музыки (требует взаимодействия пользователя в некоторых браузерах)
+    setTimeout(() => { musicBtn.click(); }, 600);
+    // --- конец блока фоновой музыки ---
+
+    // Анимированный красивый фон с цветами
+    let gradAngle = 0;
+    function drawBackground() {
+      gradAngle += 0.005;
+      const x1 = fieldSize/2 + Math.cos(gradAngle) * fieldSize/2;
+      const y1 = fieldSize/2 + Math.sin(gradAngle) * fieldSize/2;
+      const x2 = fieldSize/2 - Math.cos(gradAngle) * fieldSize/2;
+      const y2 = fieldSize/2 - Math.sin(gradAngle) * fieldSize/2;
+      const grad = ctx.createLinearGradient(x1, y1, x2, y2);
+      grad.addColorStop(0, '#ffe0f7'); // светло-розовый
+      grad.addColorStop(0.5, '#e0fff7'); // мятный
+      grad.addColorStop(1, '#e0e7ff'); // нежно-голубой
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, fieldSize, fieldSize);
+
+      // Цветочные элементы (лёгкие, полупрозрачные)
+      for (let i = 0; i < 6; i++) {
+        const t = gradAngle * (1 + i*0.2);
+        const cx = fieldSize/2 + Math.cos(t + i) * (fieldSize/2.5 + 20*Math.sin(t*2+i));
+        const cy = fieldSize/2 + Math.sin(t + i) * (fieldSize/2.5 + 20*Math.cos(t*2-i));
+        ctx.save();
+        ctx.globalAlpha = 0.13 + 0.07*Math.sin(gradAngle*2+i);
+        ctx.beginPath();
+        for (let p = 0; p < 6; p++) {
+          const angle = (Math.PI*2/6)*p;
+          const px = cx + Math.cos(angle) * 32;
+          const py = cy + Math.sin(angle) * 32;
+          ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fillStyle = i%2===0 ? '#ffb6e6' : '#b2f7ef';
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    document.addEventListener('keydown', e => {
+      if (gameOver) return;
+      if (e.key === 'ArrowLeft' && direction !== 'RIGHT') direction = 'LEFT';
+      if (e.key === 'ArrowUp' && direction !== 'DOWN') direction = 'UP';
+      if (e.key === 'ArrowRight' && direction !== 'LEFT') direction = 'RIGHT';
+      if (e.key === 'ArrowDown' && direction !== 'UP') direction = 'DOWN';
+    });
+    
+    // Обработчики для мобильных кнопок
+    function handleMobileControl(newDirection) {
+      if (gameOver) return;
+      if (newDirection === 'LEFT' && direction !== 'RIGHT') direction = 'LEFT';
+      if (newDirection === 'UP' && direction !== 'DOWN') direction = 'UP';
+      if (newDirection === 'RIGHT' && direction !== 'LEFT') direction = 'RIGHT';
+      if (newDirection === 'DOWN' && direction !== 'UP') direction = 'DOWN';
+    }
+    
+    // Добавляем обработчики для мобильных кнопок
+    const btnUp = document.getElementById('btn-up');
+    const btnLeft = document.getElementById('btn-left');
+    const btnRight = document.getElementById('btn-right');
+    const btnDown = document.getElementById('btn-down');
+    
+    if (btnUp) btnUp.addEventListener('click', () => handleMobileControl('UP'));
+    if (btnLeft) btnLeft.addEventListener('click', () => handleMobileControl('LEFT'));
+    if (btnRight) btnRight.addEventListener('click', () => handleMobileControl('RIGHT'));
+    if (btnDown) btnDown.addEventListener('click', () => handleMobileControl('DOWN'));
+    
+    // Отладочная информация
+    console.log('Мобильные кнопки:', {
+      up: btnUp,
+      left: btnLeft,
+      right: btnRight,
+      down: btnDown,
+      mobileControls: document.getElementById('mobile-controls')
+    });
+    
+    // Показываем кнопки на всех устройствах
+    const mobileControls = document.getElementById('mobile-controls');
+    if (mobileControls) {
+      mobileControls.style.display = 'grid';
+      mobileControls.style.visibility = 'visible';
+      mobileControls.style.zIndex = '1000';
+      console.log('Кнопки управления показаны');
+      
+      // Настраиваем кнопки в зависимости от размера экрана
+      const buttons = mobileControls.querySelectorAll('.control-btn');
+              if (window.innerWidth < 768) {
+          // Мобильная версия - оранжево-красные кнопки
+          buttons.forEach(btn => {
+            btn.style.background = 'linear-gradient(135deg, #ff5722, #f44336)';
+            btn.style.border = '4px solid #d32f2f';
+            btn.style.fontSize = '32px';
+            btn.style.minHeight = '80px';
+            btn.style.boxShadow = '0 6px 20px rgba(255,87,34,0.6)';
+          });
+        } else {
+          // Десктопная версия - зеленые кнопки
+          buttons.forEach(btn => {
+            btn.style.background = 'linear-gradient(135deg, #4caf50, #45a049)';
+            btn.style.border = '3px solid #2e7d32';
+            btn.style.fontSize = '24px';
+            btn.style.minHeight = '60px';
+            btn.style.boxShadow = '0 5px 15px rgba(0,0,0,0.4)';
+          });
+        }
+    }
+    
+    // Добавляем touch события для лучшей работы на мобильных
+    if (btnUp) btnUp.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      handleMobileControl('UP');
+    }, { passive: false });
+    if (btnLeft) btnLeft.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      handleMobileControl('LEFT');
+    }, { passive: false });
+    if (btnRight) btnRight.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      handleMobileControl('RIGHT');
+    }, { passive: false });
+    if (btnDown) btnDown.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      handleMobileControl('DOWN');
+    }, { passive: false });
+    
+    // Предотвращаем скролл при нажатии на кнопки
+    document.getElementById('mobile-controls').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+    }, { passive: false });
+
+    function drawSnake() {
+      for (let i = 0; i < snake.length; i++) {
+        ctx.save();
+        ctx.shadowColor = '#4caf50';
+        ctx.shadowBlur = i === 0 ? 16 : 6;
+        ctx.fillStyle = i === 0 ? '#43a047' : '#8bc34a';
+        ctx.beginPath();
+        ctx.roundRect(snake[i].x + 2, snake[i].y + 2, box - 4, box - 4, 6);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function drawFood() {
+      ctx.save();
+      ctx.globalAlpha = food.appear;
+      ctx.shadowColor = food.type.color;
+      ctx.shadowBlur = 16;
+      food.type.draw(food.x, food.y, box);
+      ctx.restore();
+      if (food.appear < 1) food.appear += 0.1;
+    }
+
+    // --- Победная анимация ---
+    let winAnimationActive = false;
+    let winParticles = [];
+    function startWinAnimation() {
+      winAnimationActive = true;
+      winParticles = [];
+      for (let i = 0; i < 64; i++) {
+        const angle = (Math.PI * 2 / 64) * i;
+        const isRose = Math.random() > 0.3;
+        winParticles.push({
+          x: fieldSize/2,
+          y: fieldSize/2,
+          vx: Math.cos(angle) * (2.5 + Math.random()*2.5),
+          vy: Math.sin(angle) * (2.5 + Math.random()*2.5),
+          r: isRose ? (20 + Math.random()*12) : (18 + Math.random()*8), // Розы немного больше
+          type: isRose ? 'rose' : 'heart',
+          alpha: 1,
+          rot: Math.random()*Math.PI*2,
+          color: isRose ? (Math.random() > 0.5 ? 'pink' : 'red') : 'heart' // Разные цвета роз
+        });
+      }
+    }
+    function drawRose(ctx, r, color = 'red') {
+      ctx.save();
+      ctx.scale(r/24, r/24);
+      
+      // Выбираем цвета в зависимости от типа розы
+      let mainColor, innerColor, centerColor, shadowColor;
+      if (color === 'pink') {
+        mainColor = '#f8bbd9';
+        innerColor = '#fce4ec';
+        centerColor = '#f48fb1';
+        shadowColor = '#f06292';
+      } else { // red
+        mainColor = '#e53970';
+        innerColor = '#f06292';
+        centerColor = '#ad1457';
+        shadowColor = '#c2185b';
+      }
+      
+      // Основные лепестки
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      for (let i = 0; i < 8; i++) {
+        ctx.bezierCurveTo(8, -8, 16, 8, 0, 16);
+        ctx.rotate(Math.PI/4);
+      }
+      ctx.closePath();
+      ctx.fillStyle = mainColor;
+      ctx.shadowColor = shadowColor;
+      ctx.shadowBlur = 8;
+      ctx.fill();
+      
+      // Внутренние лепестки
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      for (let i = 0; i < 6; i++) {
+        ctx.bezierCurveTo(6, -6, 12, 6, 0, 12);
+        ctx.rotate(Math.PI/3);
+      }
+      ctx.closePath();
+      ctx.fillStyle = innerColor;
+      ctx.shadowBlur = 4;
+      ctx.fill();
+      
+      // Центр розы
+      ctx.beginPath();
+      ctx.arc(0, 0, 4, 0, 2*Math.PI);
+      ctx.fillStyle = centerColor;
+      ctx.shadowBlur = 0;
+      ctx.fill();
+      
+      // Блики
+      ctx.globalAlpha = 0.3;
+      ctx.beginPath();
+      ctx.arc(-2, -2, 1.5, 0, 2*Math.PI);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      
+      ctx.restore();
+    }
+    function drawWinAnimation() {
+      if (!winAnimationActive) return;
+      for (const p of winParticles) {
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        if (p.type === 'heart') {
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          ctx.bezierCurveTo(-p.r/2, -p.r/2, -p.r, p.r/3, 0, p.r);
+          ctx.bezierCurveTo(p.r, p.r/3, p.r/2, -p.r/2, 0, 0);
+          ctx.fillStyle = '#ff4081';
+          ctx.shadowColor = '#ff1744';
+          ctx.shadowBlur = 8;
+          ctx.fill();
+        } else if (p.type === 'rose') {
+          drawRose(ctx, p.r, p.color);
+        }
+        ctx.restore();
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.98;
+        p.vy *= 0.98;
+        p.alpha -= 0.012;
+        p.rot += 0.03;
+      }
+      winParticles = winParticles.filter(p => p.alpha > 0.05);
+      if (winParticles.length === 0) winAnimationActive = false;
+    }
+    // --- конец блока победной анимации ---
+
+    function draw() {
+      drawBackground();
+      drawSnake();
+      drawFood();
+      drawWinAnimation();
+
+      let headX = snake[0].x;
+      let headY = snake[0].y;
+
+      if (direction === 'LEFT') headX -= box;
+      if (direction === 'UP') headY -= box;
+      if (direction === 'RIGHT') headX += box;
+      if (direction === 'DOWN') headY += box;
+
+      // Проверка на поедание еды
+      if (headX === food.x && headY === food.y) {
+        score++;
+        document.getElementById('score').textContent = 'Счёт: ' + score;
+        food = getRandomFood();
+        food.appear = 0;
+        playEatSound();
+        if (score === 5) {
+          setTimeout(() => {
+            alert('Доброе утро, Лера');
+            speakLeraMorning();
+          }, 100);
+        }
+        if (score === 10) {
+          setTimeout(() => {
+            alert('Выздоравливай быстрее =)');
+            speakGetWell();
+          }, 100);
+        }
+        if (score === 15) {
+          setTimeout(() => {
+            alert('Ещё немного и ты станешь гастроэнтерологом =)');
+            speakGastroenterologist();
+          }, 100);
+        }
+        if (score === 20) {
+          setTimeout(() => {
+            alert('Победа близка Валерия');
+            speakVictoryClose();
+          }, 100);
+        }
+        if (score === 25) {
+          clearInterval(game);
+          gameOver = true;
+          setTimeout(() => {
+            alert('Ураааааа! Лера Победила =)');
+            speakLeraWin();
+            showGameOverCustom('Ураааааа! Лера Победила =)!<br>Ты набрала 25 очков!');
+          }, 100);
+          return;
+        }
+      } else {
+        snake.pop();
+      }
+
+      // Новая голова
+      const newHead = {x: headX, y: headY};
+
+      // Проверка на столкновение
+      if (
+        headX < 0 || headX >= fieldSize || headY < 0 || headY >= fieldSize ||
+        snake.some(segment => segment.x === headX && segment.y === headY)
+      ) {
+        clearInterval(game);
+        gameOver = true;
+        playGameOverSound();
+        showGameOver();
+        return;
+      }
+
+      snake.unshift(newHead);
+    }
+
+    function showGameOver() {
+      const over = document.getElementById('gameover');
+      over.innerHTML = `Игра окончена!<br>Ваш счёт: <b>${score}</b><br><button id="restart" style="margin-top:18px;padding:10px 28px;font-size:1.1rem;background:#4caf50;color:#fff;border:none;border-radius:8px;cursor:pointer;">Заново</button>`;
+      over.style.display = 'block';
+      document.getElementById('restart').onclick = () => location.reload();
+      bgMusic.pause();
+      musicBtn.textContent = 'Музыка: Выкл';
+      musicPlaying = false;
+    }
+
+    function speakLeraMorning() {
+      if (!('speechSynthesis' in window)) return;
+      const utter = new SpeechSynthesisUtterance('Доброе утро, Лера');
+      utter.lang = 'ru-RU';
+      // Найти приятный мужской голос
+      const voices = window.speechSynthesis.getVoices();
+      const maleRu = voices.find(v => v.lang === 'ru-RU' && v.name.toLowerCase().includes('male'))
+        || voices.find(v => v.lang === 'ru-RU' && v.name.toLowerCase().includes('муж'))
+        || voices.find(v => v.lang === 'ru-RU' && v.gender === 'male')
+        || voices.find(v => v.lang === 'ru-RU');
+      if (maleRu) utter.voice = maleRu;
+      utter.rate = 0.95;
+      utter.pitch = 0.8;
+      window.speechSynthesis.speak(utter);
+    }
+
+    // --- добавлено: озвучка для 10 очков ---
+    function speakGetWell() {
+      if (!('speechSynthesis' in window)) return;
+      const utter = new SpeechSynthesisUtterance('Выздоравливай быстрее');
+      utter.lang = 'ru-RU';
+      // Найти приятный мужской голос
+      const voices = window.speechSynthesis.getVoices();
+      const maleRu = voices.find(v => v.lang === 'ru-RU' && v.name.toLowerCase().includes('male'))
+        || voices.find(v => v.lang === 'ru-RU' && v.name.toLowerCase().includes('муж'))
+        || voices.find(v => v.lang === 'ru-RU' && v.gender === 'male')
+        || voices.find(v => v.lang === 'ru-RU');
+      if (maleRu) utter.voice = maleRu;
+      utter.rate = 1.05;
+      utter.pitch = 0.9;
+      window.speechSynthesis.speak(utter);
+    }
+    // --- конец блока озвучки ---
+    function speakVictoryClose() {
+      if (!('speechSynthesis' in window)) return;
+      const utter = new SpeechSynthesisUtterance('Победа близка Валерия');
+      utter.lang = 'ru-RU';
+      const voices = window.speechSynthesis.getVoices();
+      const maleRu = voices.find(v => v.lang === 'ru-RU' && v.name.toLowerCase().includes('male'))
+        || voices.find(v => v.lang === 'ru-RU' && v.name.toLowerCase().includes('муж'))
+        || voices.find(v => v.lang === 'ru-RU' && v.gender === 'male')
+        || voices.find(v => v.lang === 'ru-RU');
+      if (maleRu) utter.voice = maleRu;
+      utter.rate = 1.0;
+      utter.pitch = 0.95;
+      window.speechSynthesis.speak(utter);
+    }
+    function speakGastroenterologist() {
+      if (!('speechSynthesis' in window)) return;
+      const utter = new SpeechSynthesisUtterance('Ещё немного и ты станешь гастроэнтерологом');
+      utter.lang = 'ru-RU';
+      const voices = window.speechSynthesis.getVoices();
+      const maleRu = voices.find(v => v.lang === 'ru-RU' && v.name.toLowerCase().includes('male'))
+        || voices.find(v => v.lang === 'ru-RU' && v.name.toLowerCase().includes('муж'))
+        || voices.find(v => v.lang === 'ru-RU' && v.gender === 'male')
+        || voices.find(v => v.lang === 'ru-RU');
+      if (maleRu) utter.voice = maleRu;
+      utter.rate = 1.0;
+      utter.pitch = 0.9;
+      window.speechSynthesis.speak(utter);
+    }
+    function speakLeraWin() {
+      if (!('speechSynthesis' in window)) return;
+      const utter = new SpeechSynthesisUtterance('Ураааааа! Лера Победила');
+      utter.lang = 'ru-RU';
+      const voices = window.speechSynthesis.getVoices();
+      const maleRu = voices.find(v => v.lang === 'ru-RU' && v.name.toLowerCase().includes('male'))
+        || voices.find(v => v.lang === 'ru-RU' && v.name.toLowerCase().includes('муж'))
+        || voices.find(v => v.lang === 'ru-RU' && v.gender === 'male')
+        || voices.find(v => v.lang === 'ru-RU');
+      if (maleRu) utter.voice = maleRu;
+      utter.rate = 1.0;
+      utter.pitch = 1.0;
+      window.speechSynthesis.speak(utter);
+    }
+    function showGameOverCustom(msg) {
+      const over = document.getElementById('gameover');
+      over.innerHTML = `${msg}<br><button id="restart" style="margin-top:18px;padding:10px 28px;font-size:1.1rem;background:#4caf50;color:#fff;border:none;border-radius:8px;cursor:pointer;">Заново</button>`;
+      over.style.display = 'block';
+      document.getElementById('restart').onclick = () => location.reload();
+      bgMusic.pause();
+      musicBtn.textContent = 'Музыка: Выкл';
+      musicPlaying = false;
+      startWinAnimation();
+    }
+
+    // Полифил для roundRect (старые браузеры)
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+        this.beginPath();
+        this.moveTo(x + r, y);
+        this.lineTo(x + w - r, y);
+        this.quadraticCurveTo(x + w, y, x + w, y + r);
+        this.lineTo(x + w, y + h - r);
+        this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        this.lineTo(x + r, y + h);
+        this.quadraticCurveTo(x, y + h, x, y + h - r);
+        this.lineTo(x, y + r);
+        this.quadraticCurveTo(x, y, x + r, y);
+        this.closePath();
+      };
+    }
+
+    let game = setInterval(draw, 130);
+  </script>
+</body>
+</html>
